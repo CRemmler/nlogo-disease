@@ -91,7 +91,7 @@ jQuery(document).ready(function() {
   
   // remove student
   socket.on("student disconnect", function(data) {
-    var command = 'ask turtle "'+data.turtleId+'" [die]';
+    var command = 'ask turtle '+data.turtleId+' [die]';
     session.widgetController.ractive.findComponent('console').fire('run', command);
   });
   
