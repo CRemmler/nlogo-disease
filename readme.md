@@ -1,4 +1,4 @@
-Try ii out:
+Try it out:
 https://nlogo-disease-dev.herokuapp.com/
 
 Features:
