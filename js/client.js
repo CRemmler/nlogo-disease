@@ -6,7 +6,9 @@ jQuery(document).ready(function() {
   var userType;
   var turtleDict = {};
   
-  socket = io.connect('localhost:3003');
+  //socket = io.connect('localhost:3003');
+  //socket = io.connect('https://dashboard.heroku.com/apps/nlogo-disease-dev:3003');
+  socket = io();
 
   // show first screen, ask user to enter room
   Interface.showLogin();
