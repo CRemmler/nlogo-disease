@@ -11,7 +11,7 @@ https://nlogo-disease-dev.herokuapp.com/
 - [x] When a student logs out, the teacher removes student's turtle
 - [x] Students see reporters such as position, shape, color and state of infection. 
 
-## Convert client-side NetLogo commands into server-side Javascript
+## Convert client-initiated NetLogo commands into Javascript
 - [x] student-move-check-infect 
 - [x] execute-move
 - [x] spread-disease
