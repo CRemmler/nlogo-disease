@@ -2,12 +2,9 @@ var socket;
 var oliver;
 
 jQuery(document).ready(function() {
-  var socketId;
+  var userId;
   var userType;
   var turtleDict = {};
-  
-  //socket = io.connect('localhost:3003');
-  //socket = io.connect('https://dashboard.heroku.com/apps/nlogo-disease-dev:3003');
   socket = io();
 
   // show first screen, ask user to enter room
@@ -15,7 +12,7 @@ jQuery(document).ready(function() {
 
   // save student settings
   socket.on("save settings", function(data) {
-    socketId = data.socketId; 
+    userId = data.userId; 
     userType = data.userType; 
   });
   
@@ -24,23 +21,37 @@ jQuery(document).ready(function() {
     userType === "teacher" ? Interface.showTeacher() : Interface.showStudent();
   });
   
-  // apply most recent updates to world
+  // student repaints most recent changes to world
   socket.on("send update", function(data) {
-    //console.log("update world", data.turtles);
     oliver.applyUpdate({turtles: data.turtles});
     oliver.repaint();
   });  
+
+  // teacher updates turtle variables
+  socket.on("send update turtles", function(data) {
+    for (var key in data.turtles) {
+      updateTurtle(data.turtles[key]);
+    }
+  });
   
-  //-----------------------//
-  // Disease-specific logic
-  //-----------------------//
+  // update each variable, for one turtle
+  function updateTurtle(oneTurtle) {
+    var turtleId = oneTurtle.who;
+    if (turtleId != undefined) {
+      for (var key in oneTurtle) {
+        if (key != "who") {
+          world.turtleManager.getTurtle(turtleId).setVariable(key, oneTurtle[key]);
+        }
+      }
+    }
+  }
   
   // netlogo colors = ["white", "brown", "green", "yellow", "(violet + 1)", "(sky + 1)"];
   var colorNames = ["white", "brown", "green", "yellow", "purple", "blue"];
   var colorValues = [9.9, 35, 55, 45, 116, 96];
   
+  // student updates reporters
   socket.on("send update reporters", function(data) {
-    //console.log("update reporters ", data.turtle);
     var turtle = data.turtle;
     if (turtle.infected != undefined) { $("#infected").html("" + turtle.infected); }
     if (turtle.xcor) { $("#xcor").html(turtle.xcor); }
@@ -60,12 +71,12 @@ jQuery(document).ready(function() {
 
   // teacher runs create-new-student
   socket.on("setup student", function(data) {
-    var socketId = data.socketId;
+    var userId = data.userId;
     var command = "create-students 1 [" + 
-      ' set socketid "' + socketId + 
+      ' set userid "' + userId + 
       '" setup-student-vars ]';
     session.widgetController.ractive.findComponent('console').fire('run', command);
-    socket.emit("update all", {socketId: data.socketId});
+    socket.emit("update all", {userId: data.userId});
   });
   
   // teacher gives student a new appearance
@@ -80,10 +91,6 @@ jQuery(document).ready(function() {
     session.widgetController.ractive.findComponent('console').fire('run', command);
   });
   
-  //------------------------------//
-  // End of Disease-specific logic
-  //------------------------------//
-  
   // student leaves activity and sees login page
   socket.on("teacher disconnect", function(data) {
     Interface.showLogin();
@@ -91,7 +98,10 @@ jQuery(document).ready(function() {
   
   // remove student
   socket.on("student disconnect", function(data) {
-    var command = 'ask turtle '+data.turtleId+' [die]';
+    var command = 'ask turtle '+data.turtleId +
+      ' [ die ' + 
+      ' set used-shape-colors remove my-code used-shape-colors ' +
+    ']';
     session.widgetController.ractive.findComponent('console').fire('run', command);
   });
   

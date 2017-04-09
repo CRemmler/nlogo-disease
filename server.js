@@ -16,7 +16,7 @@ io.on('connection', function(socket){
 	
 	// user enters room
 	socket.on("enter room", function(data) {
-		var myUserType, mySocketId, myTurtleId;
+		var myUserType, myUserId, myTurtleId;
 		
     // declare myRoom
     socket.myRoom = data.room;
@@ -26,18 +26,20 @@ io.on('connection', function(socket){
 			roomData[myRoom].teacherInRoom = false;
       roomData[myRoom].turtles = {};
 			roomData[myRoom].turtleDict = {};
-			roomData[myRoom].socketDict = {};
+			roomData[myRoom].userIdDict = {};
+			roomData[myRoom].options = {};
+			roomData[myRoom].options.infectionChance = 100;
 		}
 		
     // declare myUserType, first user in is a teacher, rest are students
 		socket.myUserType = (!roomData[myRoom].teacherInRoom) ? "teacher" : "student";
 		myUserType = socket.myUserType;
 		
-    // declare mySocketId
-		mySocketId = socket.id;
+    // declare myUserId
+		myUserId = socket.id;
     
 		// send settings to client
-    socket.emit("save settings", {userType: myUserType, socketId: mySocketId});
+    socket.emit("save settings", {userType: myUserType, userId: myUserId});
 
     // join myRoom
 		socket.join(myRoom+"-"+myUserType);
@@ -54,7 +56,7 @@ io.on('connection', function(socket){
       
 		} else {
       // action for teacher to take
-			socket.to(myRoom+"-teacher").emit("setup student", {socketId: mySocketId});
+			socket.to(myRoom+"-teacher").emit("setup student", {userId: myUserId});
 		}
     
 	});	
@@ -62,50 +64,51 @@ io.on('connection', function(socket){
 	// send the entire state of the world, in this room
   socket.on("update all", function(data) {
     var myRoom = socket.myRoom;
-    var socketId = data.socketId;
-    io.to(socketId).emit("send update", {turtles: roomData[myRoom].turtles});
+    var userId = data.userId;
+    io.to(userId).emit("send update", {turtles: roomData[myRoom].turtles});
 	});
   
 	// send only most recent updates of the world, in this room
   socket.on("update", function(data) {
-		//console.log("update on client");
     var myRoom = socket.myRoom;
-		var socketId;
+		var userId;
 		var turtleId;
 		var turtle;
-		var outgoingTurtle;
+		var reporterTurtle;
 		
 		// send update to all students
 		socket.to(myRoom+"-student").emit("send update", {turtles: data.turtles});
 		
 		// send updates to specific students for their NetLogo reporters
 		for (var key in data.turtles) 
-		{ 
+		{
 			turtle = data.turtles[key];
 			turtleId = key;
-			socketId = (turtle.SOCKETID === undefined) ? roomData[myRoom].socketDict[turtleId] : turtle.SOCKETID;
+			userId = (turtle.USERID === undefined) ? roomData[myRoom].userIdDict[turtleId] : turtle.USERID;
 			
 			// for each of the turtles, save whole turtle to roomData[myRoom].turtles
 			if (roomData[myRoom].turtles[turtleId] === undefined) {
 				roomData[myRoom].turtles[turtleId] = turtle;
 			}
-			
+
 			// if it is a student save turtleid/studentid pairs in dicts 
 			if (turtle.BREED === "STUDENTS") {	
-				roomData[myRoom].turtleDict[socketId] = turtleId;
-				roomData[myRoom].socketDict[turtleId] = socketId;			
+				roomData[myRoom].turtleDict[userId] = turtleId;
+				roomData[myRoom].userIdDict[turtleId] = userId;			
 			}
+			
+			socket.to(myRoom+"-teacher").emit("show turtle", {turtle: turtle});
 			
 			// if any of the reporter values are changed, send that to specific student
 			// also save that specific updated variable in roomData[roomId].turtles object
-			outgoingTurtle = {};
-			if (turtle.SHAPE != undefined) { outgoingTurtle.shape = turtle.SHAPE; roomData[myRoom].turtles[turtleId].shape = turtle.SHAPE; }
-			if (turtle.COLOR != undefined) { outgoingTurtle.color = turtle.COLOR; roomData[myRoom].turtles[turtleId].color = turtle.COLOR; }
-			if (turtle.INFECTED != undefined) {	outgoingTurtle.infected = turtle.INFECTED; roomData[myRoom].turtles[turtleId].infected = turtle.INFECTED; } 
-			if (turtle.XCOR != undefined) {	outgoingTurtle.xcor = turtle.XCOR; roomData[myRoom].turtles[turtleId].xcor = turtle.XCOR; }
-			if (turtle.YCOR != undefined) {	outgoingTurtle.ycor = turtle.YCOR; roomData[myRoom].turtles[turtleId].ycor = turtle.YCOR; }
-			if (outgoingTurtle != {}) {
-				io.to(socketId).emit("send update reporters", {turtle: outgoingTurtle});
+			reporterTurtle = {};
+			if (turtle.SHAPE != undefined) { reporterTurtle.shape = turtle.SHAPE; roomData[myRoom].turtles[turtleId].SHAPE = turtle.SHAPE; }
+			if (turtle.COLOR != undefined) { reporterTurtle.color = turtle.COLOR; roomData[myRoom].turtles[turtleId].COLOR = turtle.COLOR; }
+			if (turtle.INFECTED != undefined) {	reporterTurtle.infected = turtle.INFECTED; roomData[myRoom].turtles[turtleId].INFECTED = turtle.INFECTED; } 
+			if (turtle.XCOR != undefined) {	reporterTurtle.xcor = turtle.XCOR; roomData[myRoom].turtles[turtleId].XCOR = turtle.XCOR; }
+			if (turtle.YCOR != undefined) {	reporterTurtle.ycor = turtle.YCOR; roomData[myRoom].turtles[turtleId].YCOR = turtle.YCOR; }
+			if (reporterTurtle != {}) {
+				io.to(userId).emit("send update reporters", {turtle: reporterTurtle});
 			} 
 		}
   });
@@ -117,42 +120,101 @@ io.on('connection', function(socket){
 	// send netlogo command, that will trigger updates from within netlogo part
   socket.on("change appearance", function() {
     var myRoom = socket.myRoom;
-		var mySocketId = socket.id;
-		var myTurtleId = roomData[myRoom].turtleDict[mySocketId];
+		var myUserId = socket.id;
+		var myTurtleId = roomData[myRoom].turtleDict[myUserId];
 		socket.to(myRoom+"-teacher").emit("send appearance", {turtleId: myTurtleId});
 	});
   
+	// send world to students, send reporter updates to individual 
+	socket.on("change infection chance", function(data) {
+		var myRoom = socket.myRoom;
+		if (roomData[myRoom]) {
+			roomData[myRoom].options.infectionChance = data.infectionChance;
+		}
+	});
+	
 	// student pushes buttons, change variables in world on server,
 	// send world to students, send reporter updates to individual 
-	socket.on("change position", function(data) {
+	socket.on("execute move", function(data) {
     var myRoom = socket.myRoom;
-		var mySocketId = socket.id;
-		var myTurtleId = roomData[myRoom].turtleDict[mySocketId];
+		var myUserId = socket.id;
+		var myTurtleId = roomData[myRoom].turtleDict[myUserId];
+		var updateTurtles = {};
+		var turtle;
 		var max = 10;
 		if (myTurtleId != undefined) {
-			var turtles = {};
-			var outgoingTurtle = {};
-			if (data.xChange === 0) {
-				if ((Math.abs(roomData[myRoom].turtles[myTurtleId].YCOR + data.yChange)) < max) {
-					roomData[myRoom].turtles[myTurtleId].YCOR = roomData[myRoom].turtles[myTurtleId].YCOR + data.yChange;
-					turtles[myTurtleId] = {};
-					turtles[myTurtleId].YCOR = roomData[myRoom].turtles[myTurtleId].YCOR;
-					outgoingTurtle.ycor = turtles[myTurtleId].YCOR;
-				}
-			} else {
-				if ((Math.abs(roomData[myRoom].turtles[myTurtleId].XCOR + data.xChange)) < max) {
-					roomData[myRoom].turtles[myTurtleId].XCOR = roomData[myRoom].turtles[myTurtleId].XCOR + data.xChange;			
-					turtles[myTurtleId] = {};
-					turtles[myTurtleId].XCOR = roomData[myRoom].turtles[myTurtleId].XCOR;
-					outgoingTurtle.xcor = turtles[myTurtleId].XCOR;
+			turtle = {};
+			turtle.who = myTurtleId;
+			switch (data.heading) {
+				case 0:
+					if ((Math.abs(roomData[myRoom].turtles[myTurtleId].YCOR + data.stepsize)) <= max) {
+						turtle.ycor = roomData[myRoom].turtles[myTurtleId].YCOR + data.stepsize;
+					}
+					break;
+				case 90:
+					if ((Math.abs(roomData[myRoom].turtles[myTurtleId].XCOR + data.stepsize)) <= max) {
+						turtle.xcor = roomData[myRoom].turtles[myTurtleId].XCOR + data.stepsize;
+					}
+					break;
+				case 180:
+					if ((Math.abs(roomData[myRoom].turtles[myTurtleId].YCOR - data.stepsize)) <= max) {
+						turtle.ycor = roomData[myRoom].turtles[myTurtleId].YCOR - data.stepsize;
+					}
+					break;
+				case 270:
+					if ((Math.abs(roomData[myRoom].turtles[myTurtleId].XCOR - data.stepsize)) <= max) {
+						turtle.xcor = roomData[myRoom].turtles[myTurtleId].XCOR - data.stepsize;
+					}
+					break;
+			}
+			updateTurtles[myTurtleId] = turtle;
+			socket.to(myRoom+"-teacher").emit("send update turtles", {turtles: updateTurtles});
+		}
+	});
+			
+	socket.on("check infect", function(data) {
+		// find all turtles here
+		var myRoom = socket.myRoom;
+		var myUserId = socket.id;
+		var myTurtleId = roomData[myRoom].turtleDict[myUserId];
+		var updateTurtles = {};
+		var turtle;
+		var turtles = roomData[myRoom].turtles;
+		var myXcor = roomData[myRoom].turtles[myTurtleId].XCOR;
+		var myYcor = roomData[myRoom].turtles[myTurtleId].YCOR;
+		var infectionChance = roomData[myRoom].options.infectionChance;
+		var turtlesHere = {};
+		var infectionHere = roomData[myRoom].turtles[myTurtleId].INFECTED;
+		turtlesHere[myTurtleId] = roomData[myRoom].turtles[myTurtleId];
+		for (var key in turtles) {
+			if (turtles[key].XCOR === myXcor) {
+				if (turtles[key].YCOR === myYcor) {
+					turtlesHere[key] = turtles[key];
+					if (turtles[key].INFECTED === true) {
+						infectionHere = true;
+					}
 				}
 			}
-			socket.to(myRoom+"-teacher").emit("send update", {turtles: turtles});
-			socket.to(myRoom+"-student").emit("send update", {turtles: turtles}); 
-			socket.emit("send update", {turtles: turtles}); 
-		 	socket.emit("send update reporters", {turtle: outgoingTurtle});
 		}
 		
+		// pick which turtles get infected
+		if (infectionHere) {
+      for (var key in turtlesHere) {
+        if (Math.random() * 100 + 1 <= infectionChance) {  
+					if (!turtlesHere[key].INFECTED) 
+					{ 
+						if (!updateTurtles[key]) {
+							turtle = {};
+							turtle.who = turtlesHere[key].WHO;							
+						}
+						turtle.infected = true;
+						turtle.shape = roomData[myRoom].turtles[key].BASESHAPE + " sick";
+						updateTurtles[myTurtleId] = turtle;
+					}
+				} 
+      }
+			socket.to(myRoom+"-teacher").emit("send update turtles", {turtles: updateTurtles});
+		}	
 	});
 	
   //------------------------------//
@@ -163,7 +225,7 @@ io.on('connection', function(socket){
 	socket.on('disconnect', function () {
 		var myRoom = socket.myRoom;
 		var myTurtleId = socket.myTurtleId;
-		var mySocketId = socket.id;
+		var myUserId = socket.id;
 		if (socket.myUserType === "teacher") {
 			socket.to(myRoom+"-student").emit("teacher disconnect");
 			//var sockets = io.sockets.adapter.rooms[myRoom+"-student"];
@@ -174,7 +236,8 @@ io.on('connection', function(socket){
 			delete roomData[myRoom];
 		} else {
 			if (roomData[myRoom] != undefined) {
-				var myTurtleId = roomData[myRoom].turtleDict[mySocketId];
+				var myTurtleId = roomData[myRoom].turtleDict[myUserId];
+				delete roomData[myRoom].turtles[myTurtleId];
 				socket.to(myRoom+"-teacher").emit("student disconnect", {turtleId: myTurtleId});
 			}
 		}
