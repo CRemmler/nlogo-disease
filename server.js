@@ -29,6 +29,7 @@ io.on('connection', function(socket){
 			roomData[myRoom].userIdDict = {};
 			roomData[myRoom].options = {};
 			roomData[myRoom].options.infectionChance = 100;
+			roomData[myRoom].options.usedShapeColors = [];
 		}
 		
     // declare myUserType, first user in is a teacher, rest are students
@@ -50,9 +51,6 @@ io.on('connection', function(socket){
 		if (myUserType === "teacher") {
       // remembet that there is already a teacher in room
 			roomData[myRoom].teacherInRoom = true;
-      
-      // action for teacher to take
-			socket.emit("setup teacher");
       
 		} else {
       // action for teacher to take
@@ -92,10 +90,10 @@ io.on('connection', function(socket){
 			}
 
 			// if it is a student save turtleid/studentid pairs in dicts 
-			if (turtle.BREED === "STUDENTS") {	
-				roomData[myRoom].turtleDict[userId] = turtleId;
-				roomData[myRoom].userIdDict[turtleId] = userId;			
-			}
+			// if (turtle.BREED === "STUDENTS") {	
+			//	roomData[myRoom].turtleDict[userId] = turtleId;
+			//	roomData[myRoom].userIdDict[turtleId] = userId;			
+			// }
 			
 			socket.to(myRoom+"-teacher").emit("show turtle", {turtle: turtle});
 			
@@ -116,15 +114,85 @@ io.on('connection', function(socket){
   //-----------------------//
   // Disease-specific logic
   //-----------------------//
+	
+	var colorNames = ["white", "brown", "green", "yellow", "purple", "blue"];
+	//world.observer.getGlobal("color-names");
+	var colors = [9.9, 35, 55, 45, 116, 96];
+	//world.observer.getGlobal("colors");
+	var shapeNames =["box", "star", "wheel", "target", "cat", "dog", "butterfly", "leaf", "car", "airplane", "monster", "key", "cow skull", "ghost", "cactus", "moon", "heart"]
+	//world.observer.getGlobal("shape-names");
+	var maxPossibleCodes = colors.length * shapeNames.length;
 
 	// send netlogo command, that will trigger updates from within netlogo part
   socket.on("change appearance", function() {
     var myRoom = socket.myRoom;
 		var myUserId = socket.id;
 		var myTurtleId = roomData[myRoom].turtleDict[myUserId];
-		socket.to(myRoom+"-teacher").emit("send appearance", {turtleId: myTurtleId});
+		
+		var myBaseShape = roomData[myRoom].turtles[myTurtleId].BASESHAPE;
+		var myColor = roomData[myRoom].turtles[myTurtleId].COLOR;
+		var myCode = shapeNames.indexOf(myBaseShape) + shapeNames.length + colors.indexOf(myColor);
+		var myShape = roomData[myRoom].turtles[myTurtleId].SHAPE;
+		var myInfected = roomData[myRoom].turtles[myTurtleId].INFECTED;
+		var usedShapeColors = roomData[myRoom].options.usedShapeColors;
+		roomData[myRoom].options.usedShapeColors = usedShapeColors.splice(usedShapeColors.indexOf(myCode,1));
+		myCode = Math.floor(Math.random() * maxPossibleCodes);
+		if (usedShapeColors.length < maxPossibleCodes) {
+			while (usedShapeColors.indexOf(myCode) != -1) {
+				myCode = Math.floor(Math.random() * maxPossibleCodes);
+			}
+		}
+		roomData[myRoom].options.usedShapeColors.push(myCode);
+		var key = myCode % shapeNames.length;
+		myBaseShape = shapeNames[key];
+		myShape = myBaseShape;
+		key = myCode / shapeNames.length;
+		myColor = colors[Math.floor(key)];
+		if (myInfected) {
+      if (myShape != (myBaseShape + " sick")) { myShape = myBaseShape + " sick"; }
+    }
+		var updateTurtles = {};
+		var turtle = {};
+		turtle.who = myTurtleId;
+		turtle.shape = myShape;
+		turtle.color = myColor;
+		turtle.baseshape = myBaseShape;
+		updateTurtles[myTurtleId] = turtle;
+		socket.to(myRoom+"-teacher").emit("send update turtles", {turtles: updateTurtles});
 	});
   
+	socket.on("create student", function(data) {
+		var myRoom = socket.myRoom;
+		
+		var myUserId = data.userId;
+		var myTurtleId = data.turtleId;
+		
+		roomData[myRoom].turtleDict[myUserId] = myTurtleId;
+		roomData[myRoom].userIdDict[myTurtleId] = myUserId;		
+		var updateTurtles = {};
+		var turtle = {};
+		myCode = Math.floor(Math.random() * maxPossibleCodes);
+		var usedShapeColors = roomData[myRoom].options.usedShapeColors;
+		if (usedShapeColors.length < maxPossibleCodes) {
+			while (usedShapeColors.indexOf(myCode) != -1) {
+				myCode = Math.floor(Math.random() * maxPossibleCodes);
+			}
+		}
+		roomData[myRoom].options.usedShapeColors.push(myCode);
+		var key = myCode % shapeNames.length;
+		var myBaseShape = shapeNames[key];
+		var myShape = myBaseShape;
+		key = myCode / shapeNames.length;
+		var myColor = colors[Math.floor(key)];
+		turtle.who = myTurtleId;
+		turtle.shape = myShape;
+		turtle.color = myColor;
+		turtle.baseshape = myBaseShape;
+		updateTurtles[myTurtleId] = turtle;
+		socket.emit("send update turtles", {turtles: updateTurtles});
+		io.to(myUserId).emit("send update", {turtles: roomData[myRoom].turtles});
+	});
+	
 	// send world to students, send reporter updates to individual 
 	socket.on("change infection chance", function(data) {
 		var myRoom = socket.myRoom;
@@ -237,8 +305,19 @@ io.on('connection', function(socket){
 		} else {
 			if (roomData[myRoom] != undefined) {
 				var myTurtleId = roomData[myRoom].turtleDict[myUserId];
+				var myBaseShape = roomData[myRoom].turtles[myTurtleId].BASESHAPE;
+				var myColor = roomData[myRoom].turtles[myTurtleId].COLOR;
+				var myCode = shapeNames.indexOf(myBaseShape) + shapeNames.length + colors.indexOf(myColor);
+				var usedShapeColors = roomData[myRoom].options.usedShapeColors;
+				roomData[myRoom].options.usedShapeColors = usedShapeColors.splice(usedShapeColors.indexOf(myCode,1));
+				
+				var updateTurtles = {};
+				var turtle = {};
+				turtle.who = myTurtleId;
+				updateTurtles[myTurtleId] = turtle;
+				
+				socket.to(myRoom+"-teacher").emit("remove student", {turtleId: myTurtleId});
 				delete roomData[myRoom].turtles[myTurtleId];
-				socket.to(myRoom+"-teacher").emit("student disconnect", {turtleId: myTurtleId});
 			}
 		}
 	});
