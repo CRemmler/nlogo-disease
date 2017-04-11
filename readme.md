@@ -10,14 +10,16 @@ https://nlogo-disease-dev.herokuapp.com/
 - [x] When a teacher logs out, students leave room and return to login state.
 - [x] When a student logs out, the teacher removes student's turtle
 - [x] Students see reporters such as position, shape, color and state of infection. 
+- [x] Get multiple plots to work.
+- [x] Make plot pointer show correct position.
 
 ## Convert client-initiated NetLogo commands into Javascript
 - [x] student-move-check-infect 
 - [x] execute-move
 - [x] spread-disease
 - [x] maybe-get-sick
-- [ ] setup
-- [ ] create-new-student
-- [ ] remove-student
-- [ ] execute-change-turtle
+- [x] setup
+- [x] create-new-student
+- [x] remove-student
+- [x] execute-change-turtle
 

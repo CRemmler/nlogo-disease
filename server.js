@@ -88,12 +88,6 @@ io.on('connection', function(socket){
 			if (roomData[myRoom].turtles[turtleId] === undefined) {
 				roomData[myRoom].turtles[turtleId] = turtle;
 			}
-
-			// if it is a student save turtleid/studentid pairs in dicts 
-			// if (turtle.BREED === "STUDENTS") {	
-			//	roomData[myRoom].turtleDict[userId] = turtleId;
-			//	roomData[myRoom].userIdDict[turtleId] = userId;			
-			// }
 			
 			socket.to(myRoom+"-teacher").emit("show turtle", {turtle: turtle});
 			

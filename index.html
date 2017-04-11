@@ -63481,12 +63481,16 @@ to startup
   setup-vars
   setup-quick-start
   reset-ticks
+  setup
 end
 
 to setup
   ask androids [ die ]
   cure-all
   reset-ticks
+  create-temporary-plot-pen word "run" run-number
+  set-plot-pen-color item (run-number mod 5) [blue red green orange violet]
+  set num-infected-last-plotted 0
 end
 
 ;; heals all sick turtles,  clears and sets up the plot,
@@ -63521,7 +63525,7 @@ to setup-vars
                    "purple" "blue"]
   set max-possible-codes (length colors * length shape-names)
   set used-shape-colors []
-  set run-number 1
+  set run-number 0
 end
 
 ;; creates turtles that wander at random
@@ -63563,7 +63567,15 @@ to go
     ;; CR [ display ]
 
     if count turtles with [infected] > 0
-    [ tick ]
+    [ 
+      tick 
+      let n count turtles with [infected]
+      ;;if n > num-infected-last-plotted 
+      ;;[
+        plotxy ticks - 1 n
+        set num-infected-last-plotted n 
+      ;;]
+    ]
     
   ]
 end
@@ -63575,7 +63587,12 @@ to go-0.75
     ask turtles with [ infected ]
     [ spread-disease ]
     if count turtles with [infected] > 0
-    [ tick ]
+    [ 
+      tick 
+      let n count turtles with [infected]
+      plotxy ticks - 1 n
+      set num-infected-last-plotted n 
+    ]
   ]
 end
 
@@ -63586,7 +63603,12 @@ to go-0.5
     ask turtles with [ infected ]
     [ spread-disease ]
     if count turtles with [infected] > 0
-    [ tick ]
+    [ 
+      tick 
+      let n count turtles with [infected]
+      plotxy ticks - 1 n
+      set num-infected-last-plotted n 
+    ]
   ]
 end
 
@@ -63597,7 +63619,12 @@ to go-0.25
     ask turtles with [ infected ]
     [ spread-disease ]
     if count turtles with [infected] > 0
-    [ tick ]
+    [ 
+      tick 
+      let n count turtles with [infected]
+      plotxy ticks - 1 n
+      set num-infected-last-plotted n 
+    ]
   ]
 end
 
@@ -64054,9 +64081,9 @@ sick
 6.0
 true
 false
-";; create a temporary plot pen for the current run\ncreate-temporary-plot-pen word \"run \" run-number\n;; cycle through a few colors so it is easy to\n;; differentiate the runs.\nset-plot-pen-color item (run-number mod 5) [blue red green orange violet]\n;; each run starts with zero infected.\nset num-infected-last-plotted 0" "let n count turtles with [infected] \n;; only plot if someone has been infected since the last time we plotted. \n;; this smoothes out the plot a bit.\nif n > num-infected-last-plotted [\n  plotxy ticks - 1 n\n  set num-infected-last-plotted n \n]"
+" " " "
 PENS
-"not-used" 1.0 0 -16777216 false "" ""
+"run1" 1.0 0 -16777216 false "" ""
 
 SLIDER
 123
