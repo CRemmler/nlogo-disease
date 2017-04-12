@@ -2,9 +2,13 @@ Interface = (function() {
 
   function displayLoginInterface() {
     $("#netlogo-model-container").addClass("hidden");
-    $(".netlogo-tab-area .netlogo-tab-text").first().click();
-    $("[cm-text]").trigger("click");
     $("#noRoomsChosen").removeClass("hidden");
+  }
+  
+  function displayDisconnectedInterface() {
+    $("#netlogo-model-container").addClass("hidden");
+    $("#noRoomsChosen").removeClass("hidden");
+    $("#noRoomsChosen").html("You have been disconnected. Please refresh the page to continue.");
   }
 
   function displayTeacherInterface() {
@@ -49,10 +53,16 @@ Interface = (function() {
     $("#netlogo-monitor-29 output").html("<span id='infected'></span>")
   }
 
+  function clearRoom(roomName) {
+    socket.emit("clear room", {roomName: roomName});
+  }
+
   return {
     showLogin: displayLoginInterface,
     showTeacher: displayTeacherInterface,
-    showStudent: displayStudentInterface
+    showStudent: displayStudentInterface,
+    showDisconnected: displayDisconnectedInterface,
+    clearRoom: clearRoom
   };
 
 })();

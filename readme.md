@@ -12,6 +12,7 @@ https://nlogo-disease-dev.herokuapp.com/
 - [x] Students see reporters such as position, shape, color and state of infection. 
 - [x] Get multiple plots to work.
 - [x] Make plot pointer show correct position.
+- [x] Admin capabilities.
 
 ## Convert client-initiated NetLogo commands into Javascript
 - [x] student-move-check-infect 

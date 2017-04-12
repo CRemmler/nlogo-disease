@@ -10,6 +10,10 @@ jQuery(document).ready(function() {
   // show first screen, ask user to enter room
   Interface.showLogin();
 
+  socket.on("display admin", function(data) {
+    $("#adminData").html(data.roomData);
+  });
+
   // save student settings
   socket.on("save settings", function(data) {
     userId = data.userId; 
@@ -18,7 +22,20 @@ jQuery(document).ready(function() {
   
   // display teacher or student interface
   socket.on("display interface", function(data) {
-    userType === "teacher" ? Interface.showTeacher() : Interface.showStudent();
+    switch (data.userType) {
+      case "teacher":
+        Interface.showTeacher();
+        break;
+      case "student":
+        Interface.showStudent();
+        break;
+      case "login":
+        Interface.showLogin();
+        break;
+      case "disconnected":
+        Interface.showDisconnected();
+        break;
+    }
   });
   
   // student repaints most recent changes to world
