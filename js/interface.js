@@ -55,6 +55,7 @@ Interface = (function() {
 
   function clearRoom(roomName) {
     socket.emit("clear room", {roomName: roomName});
+    $("#submitRoomString").trigger("click");
   }
 
   return {

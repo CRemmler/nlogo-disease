@@ -381,7 +381,7 @@ function getRoomData() {
 		if (roomData[roomKey].turtles != {}) {
 			for (var turtleKey in roomData[roomKey].turtles) {
 				var turtle = roomData[roomKey].turtles[turtleKey];
-				if (turtle.WHO != "-1") {
+				if ((turtle.WHO != "-1") && (turtle.BREED === "STUDENTS")) {
 					var colorName = (colors.indexOf(turtle.COLOR) > -1) ? colorNames[colors.indexOf(turtle.COLOR)] : "";
 					displayData = displayData + "<br>";
 					displayData = displayData + "Turtle " + turtle.WHO + " is a " + colorName + " " + turtle.SHAPE;
